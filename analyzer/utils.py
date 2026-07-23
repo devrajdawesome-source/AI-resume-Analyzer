@@ -1,75 +1,73 @@
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Expanded tech taxonomy dictionary
-TECH_KEYWORDS = {
-    "python", "django", "fastapi", "flask", "react", "javascript", "typescript",
-    "html", "css", "sql", "postgresql", "mysql", "mongodb", "c++", "java",
-    "dsa", "git", "github", "docker", "aws", "rest", "api", "apis", "full stack",
-    "frontend", "backend", "machine learning", "nlp", "pandas", "numpy", "redux",
-    "express", "node", "kubernetes", "ci/cd", "microservices", "system design"
-}
-
-def clean_and_tokenize(text: str) -> list[str]:
-    """Cleans text and extracts clean words."""
-    cleaned = re.sub(r'[^a-zA-Z0-9\s#+]', ' ', text.lower())
-    return cleaned.split()
+import json
+import os
+from google import genai
+from google.genai import types
 
 def calculate_ats_score(resume_text: str, job_description_text: str) -> dict:
     """
-    Computes ATS score using TF-IDF Vectorization + Cosine Similarity,
-    and extracts key matching/missing terms weighted by JD frequency.
+    Sends resume text and job description to Google Gemini API to get a universal,
+    domain-agnostic ATS evaluation, missing skills, and actionable feedback.
     """
     if not job_description_text.strip() or not resume_text.strip():
         return {
             "match_score": 0,
             "matching_skills": [],
             "missing_skills": [],
+            "suggestions": ["Please provide both a resume and a job description."],
             "message": "Empty resume or job description provided."
         }
 
-    # --- 1. TF-IDF COSINE SIMILARITY SCORE ---
-    # Create the TF-IDF Vectorizer (filtering out common English stop words like 'and', 'the')
-    vectorizer = TfidfVectorizer(stop_words='english')
-    
-    # Transform raw texts into numerical TF-IDF feature vectors
-    tfidf_matrix = vectorizer.fit_transform([resume_text, job_description_text])
-    
-    # Calculate Cosine Similarity between vector 0 (Resume) and vector 1 (JD)
-    similarity_matrix = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
-    raw_similarity = similarity_matrix[0][0] # Value between 0.0 and 1.0
-    
-    # Scale to percentage (e.g., 0.65 -> 65%)
-    cosine_score = int(raw_similarity * 100)
+    # Retrieve API key from environment variables (or fall back to string during testing)
+    api_key = os.getenv("GEMINI_API_KEY")
+    try:
+        # Initialize Gemini Client
+        client = genai.Client(api_key=api_key)
 
-    # --- 2. FREQUENCY-DRIVEN KEYWORD MATCHING ---
-    resume_words = set(clean_and_tokenize(resume_text))
-    jd_words = clean_and_tokenize(job_description_text)
-    
-    # Count frequency of tech keywords in the JD
-    jd_tech_freq = {}
-    for word in jd_words:
-        if word in TECH_KEYWORDS:
-            jd_tech_freq[word] = jd_tech_freq.get(word, 0) + 1
+        prompt = f"""
+        You are an expert ATS (Applicant Tracking System) recruiter and hiring manager.
+        Analyze the following Resume against the provided Job Description.
 
-    # If no standard tech keywords were found, fall back to general unique words
-    if not jd_tech_freq:
-        jd_tech_freq = {word: 1 for word in set(jd_words) if len(word) > 3}
+        --- JOB DESCRIPTION ---
+        {job_description_text}
 
-    # Sort JD skills by importance (frequency)
-    sorted_jd_skills = sorted(jd_tech_freq.keys(), key=lambda w: jd_tech_freq[w], reverse=True)
+        --- RESUME ---
+        {resume_text}
 
-    matching_skills = [skill for skill in sorted_jd_skills if skill in resume_words]
-    missing_skills = [skill for skill in sorted_jd_skills if skill not in resume_words]
+        Evaluate the fit regardless of industry/domain (tech, finance, healthcare, marketing, etc.).
+        Return your response strictly as valid JSON with the following exact keys:
+        - "match_score": Integer between 0 and 100 representing overall suitability.
+        - "matching_skills": List of strings representing skills, tools, or qualifications present in both.
+        - "missing_skills": List of key required skills, tools, or domain knowledge missing from the resume.
+        - "suggestions": List of 2-3 short, actionable bullet points to improve the resume for this specific job.
+        """
 
-    # Combine Cosine Similarity with Skill Match Ratio for a balanced ATS score
-    skill_match_ratio = len(matching_skills) / len(sorted_jd_skills) if sorted_jd_skills else 0
-    final_score = int((cosine_score * 0.6) + ((skill_match_ratio * 100) * 0.4))
+        # Enforce structured JSON response schema from Gemini
+        response = client.models.generate_content(
+            model='gemini-3.6-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.2
+            )
+        )
 
-    return {
-        "match_score": min(final_score, 100),
-        "cosine_similarity_percent": cosine_score,
-        "matching_skills": matching_skills,
-        "missing_skills": missing_skills
-    }
+        # Parse JSON string returned by Gemini
+        result = json.loads(response.text)
+
+        return {
+            "match_score": int(result.get("match_score", 0)),
+            "matching_skills": result.get("matching_skills", []),
+            "missing_skills": result.get("missing_skills", []),
+            "suggestions": result.get("suggestions", [])
+        }
+
+    except Exception as e:
+        print("Gemini API Error:", e)
+        # Fallback dictionary if API fails or quota is exceeded
+        return {
+            "match_score": 0,
+            "matching_skills": [],
+            "missing_skills": [],
+            "suggestions": [f"API Error: {str(e)}"],
+            "message": "Failed to analyze via Gemini API."
+        }

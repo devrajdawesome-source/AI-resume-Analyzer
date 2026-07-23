@@ -64,7 +64,8 @@ class AnalyzeResumeView(APIView):
             job_description=job_description,
             match_score=ats_result['match_score'],
             matching_skills=ats_result['matching_skills'],
-            missing_skills=ats_result['missing_skills']
+            missing_skills=ats_result['missing_skills'],
+            suggestions=ats_result.get('suggestions', [])
         )
         
         return Response({

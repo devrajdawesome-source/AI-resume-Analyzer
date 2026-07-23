@@ -6,6 +6,7 @@ class ResumeAnalysis(models.Model):
     match_score = models.IntegerField()
     matching_skills = models.JSONField(default=list)
     missing_skills = models.JSONField(default=list)
+    suggestions = models.JSONField(default=list) 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
