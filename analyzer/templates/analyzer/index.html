@@ -9,9 +9,19 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-6">
 
-    <div class="max-w-3xl w-full bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-700 my-8">
+    <!-- Top Navigation Header -->
+    <header class="max-w-3xl w-full flex justify-between items-center mb-6">
+        <div class="text-xl font-bold text-indigo-400">ATS.AI</div>
+        <div id="authNav" class="flex gap-3">
+            <!-- Rendered dynamically by JS based on login state -->
+            <button id="openLoginBtn" class="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-lg border border-slate-700">Login</button>
+            <button id="openRegisterBtn" class="py-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow-md">Register</button>
+        </div>
+    </header>
+
+    <div class="max-w-3xl w-full bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-700 mb-8">
         <h1 class="text-3xl font-bold text-center text-indigo-400 mb-2">AI Resume & ATS Analyzer</h1>
-        <p class="text-slate-400 text-center mb-6 text-sm">Upload your resume PDF and compute your ATS Match Score and get suggestions.</p>
+        <p class="text-slate-400 text-center mb-6 text-sm">Upload your resume PDF and evaluate ATS suitability across any job domain using Gemini AI.</p>
 
         <!-- Navigation Tabs -->
         <div class="flex border-b border-slate-700 mb-6">
@@ -43,10 +53,10 @@
             <!-- Loading Spinner -->
             <div id="loading" class="hidden text-center my-6">
                 <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-400"></div>
-                <p class="text-slate-400 text-sm mt-2"> Evaluating resume fit...</p>
+                <p class="text-slate-400 text-sm mt-2">Gemini AI is parsing PDF and evaluating suitability...</p>
             </div>
 
-            <!-- Single Analysis Result View -->
+            <!-- Analysis Result View -->
             <div id="results" class="hidden mt-8 pt-6 border-t border-slate-700 space-y-6">
                 <div class="text-center">
                     <p class="text-sm text-slate-400 uppercase tracking-wide">ATS Match Score</p>
@@ -63,7 +73,7 @@
                     <div id="missingSkills" class="flex flex-wrap gap-2"></div>
                 </div>
 
-                <!-- AI Advice / Suggestions Section -->
+                <!-- AI Advice Section -->
                 <div class="pt-4 border-t border-slate-700">
                     <h3 class="text-md font-semibold text-indigo-400 mb-2">AI Resume Improvement Advice</h3>
                     <ul id="suggestionsList" class="list-disc list-inside text-sm text-slate-300 space-y-2 bg-slate-900 p-4 rounded-lg border border-slate-700"></ul>
@@ -75,16 +85,61 @@
         <div id="historySection" class="hidden">
             <h2 class="text-xl font-bold text-slate-200 mb-4">Saved Resume Analyses</h2>
             
+            <div id="guestNotice" class="hidden bg-slate-900 border border-indigo-500/30 rounded-lg p-4 mb-4 text-center">
+                <p class="text-sm text-slate-300 mb-2">You are viewing in <strong>Guest Mode</strong>. Sign up or log in to save your analyses permanently!</p>
+                <button onclick="document.getElementById('openRegisterBtn').click()" class="text-xs text-indigo-400 font-semibold underline hover:text-indigo-300">Create Free Account</button>
+            </div>
+
             <div id="historyLoading" class="text-center py-6 text-slate-400">
                 Loading database history...
             </div>
 
             <div id="historyList" class="space-y-4"></div>
         </div>
-
     </div>
 
-    <!-- JavaScript logic -->
+    <!-- AUTH MODAL (LOGIN / REGISTER) -->
+    <div id="authModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl max-w-md w-full p-6 relative shadow-2xl">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white">&times;</button>
+            
+            <!-- LOGIN FORM -->
+            <form id="loginForm" class="space-y-4">
+                <h3 class="text-xl font-bold text-indigo-400 mb-2">Welcome Back</h3>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Username</label>
+                    <input type="text" id="loginUsername" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+                    <input type="password" id="loginPassword" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-sm">Log In</button>
+                <p class="text-xs text-center text-slate-400">Don't have an account? <a href="#" id="switchToRegister" class="text-indigo-400 underline">Register</a></p>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="registerForm" class="hidden space-y-4">
+                <h3 class="text-xl font-bold text-indigo-400 mb-2">Create an Account</h3>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Username</label>
+                    <input type="text" id="regUsername" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Email (Optional)</label>
+                    <input type="email" id="regEmail" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+                    <input type="password" id="regPassword" required class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded text-sm">Register</button>
+                <p class="text-xs text-center text-slate-400">Already have an account? <a href="#" id="switchToLogin" class="text-indigo-400 underline">Log In</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
     <script>
         const tabAnalyzeBtn = document.getElementById('tabAnalyzeBtn');
         const tabHistoryBtn = document.getElementById('tabHistoryBtn');
@@ -100,12 +155,132 @@
         const submitBtn = document.getElementById('submitBtn');
         const historyList = document.getElementById('historyList');
         const historyLoading = document.getElementById('historyLoading');
+        const guestNotice = document.getElementById('guestNotice');
+
+        // Auth Modal Elements
+        const authModal = document.getElementById('authModal');
+        const openLoginBtn = document.getElementById('openLoginBtn');
+        const openRegisterBtn = document.getElementById('openRegisterBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const switchToRegister = document.getElementById('switchToRegister');
+        const switchToLogin = document.getElementById('switchToLogin');
+        const authNav = document.getElementById('authNav');
+
+        // Helper: Get JWT Headers
+        function getAuthHeaders() {
+            const token = localStorage.getItem('access_token');
+            return token ? { 'Authorization': `Bearer ${token}` } : {};
+        }
+
+        // --- AUTH STATE MANAGER ---
+        function updateAuthUI() {
+            const token = localStorage.getItem('access_token');
+            const username = localStorage.getItem('username');
+
+            if (token && username) {
+                authNav.innerHTML = `
+                    <span class="text-sm text-slate-300 py-1 px-3 bg-slate-800 rounded border border-slate-700">👤 <strong>${username}</strong></span>
+                    <button id="logoutBtn" class="py-1.5 px-3 bg-rose-900/60 hover:bg-rose-800 text-rose-300 text-xs font-semibold rounded border border-rose-700">Logout</button>
+                `;
+                document.getElementById('logoutBtn').addEventListener('click', logout);
+            } else {
+                authNav.innerHTML = `
+                    <button id="openLoginBtn" class="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-lg border border-slate-700">Login</button>
+                    <button id="openRegisterBtn" class="py-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow-md">Register</button>
+                `;
+                document.getElementById('openLoginBtn').addEventListener('click', () => showModal('login'));
+                document.getElementById('openRegisterBtn').addEventListener('click', () => showModal('register'));
+            }
+        }
+
+        function showModal(type) {
+            authModal.classList.remove('hidden');
+            if (type === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+            } else {
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+
+        closeModalBtn.addEventListener('click', () => authModal.classList.add('hidden'));
+        switchToRegister.addEventListener('click', (e) => { e.preventDefault(); showModal('register'); });
+        switchToLogin.addEventListener('click', (e) => { e.preventDefault(); showModal('login'); });
+
+        // LOGIN SUBMIT
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/api/token/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('access_token', data.access);
+                    localStorage.setItem('refresh_token', data.refresh);
+                    localStorage.setItem('username', username);
+                    authModal.classList.add('hidden');
+                    updateAuthUI();
+                    alert('Logged in successfully!');
+                } else {
+                    alert('Invalid username or password');
+                }
+            } catch (err) {
+                alert('Login failed!');
+            }
+        });
+
+        // REGISTER SUBMIT
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+
+            try {
+                const response = await fetch('/api/register/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                if (response.ok) {
+                    alert('Account created! Logging you in...');
+                    // Auto-login after registration
+                    document.getElementById('loginUsername').value = username;
+                    document.getElementById('loginPassword').value = password;
+                    loginForm.dispatchEvent(new Event('submit'));
+                } else {
+                    const data = await response.json();
+                    alert(`Registration failed: ${JSON.stringify(data)}`);
+                }
+            } catch (err) {
+                alert('Registration failed!');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('username');
+            updateAuthUI();
+            alert('Logged out.');
+            fetchHistory();
+        }
 
         // --- TAB SWITCHING LOGIC ---
         tabAnalyzeBtn.addEventListener('click', () => {
             analyzerSection.classList.remove('hidden');
             historySection.classList.add('hidden');
-            
             tabAnalyzeBtn.className = "py-2 px-6 font-semibold border-b-2 border-indigo-500 text-indigo-400 focus:outline-none";
             tabHistoryBtn.className = "py-2 px-6 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none";
         });
@@ -113,17 +288,14 @@
         tabHistoryBtn.addEventListener('click', () => {
             historySection.classList.remove('hidden');
             analyzerSection.classList.add('hidden');
-            
             tabHistoryBtn.className = "py-2 px-6 font-semibold border-b-2 border-indigo-500 text-indigo-400 focus:outline-none";
             tabAnalyzeBtn.className = "py-2 px-6 font-semibold text-slate-400 hover:text-slate-200 focus:outline-none";
-
             fetchHistory();
         });
 
         // --- SUBMIT FORM LOGIC ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const resumeInput = document.getElementById('resumeFile').files[0];
             const jobDescInput = document.getElementById('jobDescription').value;
 
@@ -143,6 +315,7 @@
             try {
                 const response = await fetch('/api/analyze/', {
                     method: 'POST',
+                    headers: getAuthHeaders(), // Sends JWT token if logged in!
                     body: formData
                 });
 
@@ -150,7 +323,6 @@
 
                 if (response.ok) {
                     const analysis = data.ats_analysis;
-
                     scoreDisplay.innerText = `${analysis.match_score}%`;
 
                     matchingSkills.innerHTML = (analysis.matching_skills && analysis.matching_skills.length > 0)
@@ -171,27 +343,34 @@
                 }
             } catch (err) {
                 alert('Server error!');
-                console.error(err);
             } finally {
                 loading.classList.add('hidden');
                 submitBtn.disabled = false;
             }
         });
 
-        // --- FETCH HISTORY FROM SQL DATABASE LOGIC ---
+        // --- FETCH HISTORY LOGIC ---
         async function fetchHistory() {
             historyLoading.classList.remove('hidden');
             historyList.innerHTML = '';
 
             try {
-                const response = await fetch('/api/history/');
+                const response = await fetch('/api/history/', {
+                    headers: getAuthHeaders() // Sends JWT token if logged in!
+                });
                 const data = await response.json();
 
                 if (response.ok) {
                     historyLoading.classList.add('hidden');
 
-                    if (data.history.length === 0) {
-                        historyList.innerHTML = `<p class="text-slate-500 text-center py-4">No analysis records found in database.</p>`;
+                    if (data.is_guest) {
+                        guestNotice.classList.remove('hidden');
+                    } else {
+                        guestNotice.classList.add('hidden');
+                    }
+
+                    if (!data.history || data.history.length === 0) {
+                        historyList.innerHTML = `<p class="text-slate-500 text-center py-4">No saved analysis records found.</p>`;
                         return;
                     }
 
@@ -209,14 +388,14 @@
                             </div>
                         </div>
                     `).join('');
-                } else {
-                    historyLoading.innerText = "Failed to load database history.";
                 }
             } catch (err) {
-                historyLoading.innerText = "Connection error while fetching history.";
-                console.error(err);
+                historyLoading.innerText = "Error loading history.";
             }
         }
+
+        // Initialize UI State on page load
+        updateAuthUI();
     </script>
 </body>
 </html>
