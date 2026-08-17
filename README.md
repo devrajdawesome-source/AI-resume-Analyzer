@@ -30,7 +30,7 @@ This application allows job seekers from any industry (Software Engineering, Mar
 
 ## 🚀 Live Demo
 
-* **Live Web Application:** [https://ai-resume-analyzer.onrender.com](https://ai-resume-analyzer.onrender.com)
+* **Live Web Application:** [https://ai-resume-analyzer.onrender.com](https://ai-resume-analyzer-t5zh.onrender.com/)
 * **GitHub Repository:** [https://github.com/devrajdawesome-source/AI-resume-Analyzer](https://github.com/devrajdawesome-source/AI-resume-Analyzer)
 
 ---
